@@ -7,6 +7,7 @@ import {yamlRegex} from '../utils/regex';
 class HeadingBlankLinesOptions implements Options {
   bottom: boolean = true;
   emptyLineAfterYaml: boolean = true;
+  emptyLineInBlankSections: boolean = true;
 }
 
 @RuleBuilder.register
@@ -33,7 +34,11 @@ export default class HeadingBlankLines extends RuleBuilder<HeadingBlankLinesOpti
         text = text.replace(/\n+(#+\s.*)/g, '\n\n$1'); // trim blank lines before headings
         text = text.replace(/(^#+\s.*)\n+/gm, '$1\n\n'); // trim blank lines after headings
       }
-
+      if (!options.emptyLineInBlankSections) {
+        while (text.match(/(#+\s.*)\n\n+(#+\s.*)/gm)) {
+          text = text.replace(/(#+\s.*)\n\n+(#+\s.*)/gm, '$1\n$2'); // remove blank lines between two immediate headings without text
+        }
+      }
       text = text.replace(/^\n+(#+\s.*)/, '$1'); // remove blank lines before first heading
       text = text.replace(/(#+\s.*)\n+$/, '$1'); // remove blank lines after last heading
 
@@ -91,6 +96,80 @@ export default class HeadingBlankLines extends RuleBuilder<HeadingBlankLinesOpti
         options: {
           bottom: false,
           emptyLineAfterYaml: true,
+          emptyLineInBlankSections: true,
+        },
+      }),
+      new ExampleBuilder({
+        description: 'With `Bottom=true`, `emptyLineInBlankSections=false`',
+        before: dedent`
+          # H1
+          line
+          ## H2
+          # H1
+          line
+        `,
+        after: dedent`
+          # H1
+          ${''}
+          line
+          ${''}
+          ## H2
+          # H1
+          ${''}
+          line
+        `,
+        options: {
+          bottom: true,
+          emptyLineAfterYaml: true,
+          emptyLineInBlankSections: false,
+        },
+      }),
+      new ExampleBuilder({
+        description: 'With `Bottom=false`, `emptyLineInBlankSections=false`',
+        before: dedent`
+          # H1
+          line
+          ## H2
+          # H1
+          line
+        `,
+        after: dedent`
+          # H1
+          line
+          ${''}
+          ## H2
+          # H1
+          line
+        `,
+        options: {
+          bottom: false,
+          emptyLineAfterYaml: true,
+          emptyLineInBlankSections: false,
+        },
+      }),
+      new ExampleBuilder({
+        description: 'With `Bottom=false`, `emptyLineInBlankSections=false`, multiple empty sections',
+        before: dedent`
+          # H1
+          line
+          ## H2
+          ## H2
+          # H1
+          line
+        `,
+        after: dedent`
+          # H1
+          line
+          ${''}
+          ## H2
+          ## H2
+          # H1
+          line
+        `,
+        options: {
+          bottom: false,
+          emptyLineAfterYaml: true,
+          emptyLineInBlankSections: false,
         },
       }),
       new ExampleBuilder({
@@ -114,6 +193,7 @@ export default class HeadingBlankLines extends RuleBuilder<HeadingBlankLinesOpti
         options: {
           bottom: true,
           emptyLineAfterYaml: false,
+          emptyLineInBlankSections: true,
         },
       }),
     ];
@@ -131,6 +211,12 @@ export default class HeadingBlankLines extends RuleBuilder<HeadingBlankLinesOpti
         name: 'Empty Line Between Yaml and Header',
         description: 'Keep the empty line between the Yaml frontmatter and header',
         optionsKey: 'emptyLineAfterYaml',
+      }),
+      new BooleanOptionBuilder({
+        OptionsClass: HeadingBlankLinesOptions,
+        name: 'Empty Line in Empty Sections',
+        description: 'Keep the empty line in empty sections',
+        optionsKey: 'emptyLineInBlankSections',
       }),
     ];
   }
